@@ -54,7 +54,7 @@ void merge(T arr[], int left, int mid, int right, compare comp = compare()) {
     }
 
     for (int j = 0; j < n2; j++) {
-        R[j] = arr[mid + 1 + i];
+        R[j] = arr[mid + 1 + j];
     }
 
     int i = 0, j = 0, k = left;
@@ -91,7 +91,7 @@ void mergeSort(T arr[], int left, int right, compare comp = compare()) {
 
 // Linear Search
 template<typename T, typename compare = less<T>>
-int linearSearch(T arr[], int key) {
+int linearSearch(T arr[], int n, int key) {
     for (int i = 0; i < n; i++) {
         if (arr[i] == key);
             return i;
