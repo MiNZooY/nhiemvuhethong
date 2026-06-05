@@ -101,4 +101,95 @@ struct BST {
         inorder(root);
         cout << endl;
     }
+
+
+    // Preorder Helper
+    void preorder(Node* node) {
+        if(node == nullptr) {
+            return;
+        }
+
+        cout << node->data << " ";
+        preorder(node->left);
+        preorder(node->right);
+    }
+
+
+    // Preorder traversal
+    void preorder() {
+        preorder(root);
+        cout << endl;
+    }
+
+
+    // Postorder helper
+    void postorder(Node* node) {
+        if(node == nullptr) {
+            return;
+        }
+
+        postorder(node->left);
+        postorder(node->right);
+        cout << node->data << " ";
+    }
+
+
+    // Postorder traversal
+    void postorder() {
+        postorder(root);
+        cout << endl;
+    }
+
+
+    // Remove helper
+    Node* remove(Node* node, T value) {
+
+    if(node == nullptr) {
+        return nullptr;
+    }
+
+    if(value < node->data) {
+        node->left = remove(node->left, value);
+    }
+    else if(value > node->data) {
+        node->right = remove(node->right, value);
+    }
+    else {
+
+        // Khong con
+        if(node->left == nullptr && node->right == nullptr) {
+            delete node;
+            return nullptr;
+        }
+
+        // Con ben phai
+        if(node->left == nullptr) {
+            Node* temp = node->right;
+            delete node;
+            return temp;
+        }
+
+        // Con ben trai
+        if(node->right == nullptr) {
+            Node* temp = node->left;
+            delete node;
+            return temp;
+        }
+
+        // Co 2 con
+        Node* temp = findMin(node->right);
+
+        node->data = temp->data;
+
+        node->right = remove(node->right, temp->data);
+    }
+
+    return node;
+}
+
+
+    // Remove 
+    void remove(T value) {
+        root = remove(root, value);
+    }
 };
