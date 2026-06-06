@@ -1,12 +1,2 @@
-# tremendous
-Nothing
-sdffs
-test phá hoại code 
-test
-add
-sdf
-dfds
-added
-new
-nham nhi 
-viet thu tinh cho dat
+# Nhiem Vu He Thong
+Never forget your duties! 
