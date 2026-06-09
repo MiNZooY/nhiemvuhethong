@@ -1,168 +1,152 @@
 #pragma once 
 
 #include <iostream>
-using namespace std;
 
 template<typename T> 
-class LinkedList {
-    private: 
+struct Node {
+    T data;
+    Node* next;
+};
 
-    // Node
-    struct Node {
-        T* data;
-        Node* next;
+// Create a new node with data
+template<typename T>
+Node<T>* createNode(T value) {
+    Node<T>* newNode = new Node<T>();
+    newNode->data = value;
+    newNode->next = nullptr;
+    return newNode;
+}
 
-        Node(T value) {
-            data = value; 
-            next = nullptr;
-        }
-    };
+// Insert at front
+template<typename T>
+void insertFront(Node<T>*& head, T value) {
+    Node<T>* newNode = createNode(value);
+    newNode->next = head;
+    head = newNode;
+}
 
-    Node* head;
-    int count;
-
-    public:
-    
-    // Constructor
-    LinkedList() {
-        head == nullptr;
-        count = 0;
-    }
-
-    // Destructor
-    ~LinkedList() {
-        clear();
-    }
-
-    // Insert at front 
-    void insertFront (T value) {
-        Node* newNode = new Node(value);
-        newNode->next = head;
+// Insert at back
+template<typename T>
+void insertBack(Node<T>*& head, T value) {
+    Node<T>* newNode = createNode(value);
+    if (head == nullptr) {
         head = newNode;
-        count++;
+        return;
     }
-
-    // Insert at back
-    void insertBack (T value) {
-        Node* newNode = new Node(value);
-        if(head == nullptr) {
-            head = newNode;
-        } else {
-            Node* temp = head;
-            while (temp->next != nullptr) {
-                temp = temp->next;
-            }
-            
-            temp->next = newNode;
-        }
-        count++;
+    Node<T>* temp = head;
+    while (temp->next != nullptr) {
+        temp = temp->next;
     }
+    temp->next = newNode;
+}
 
-    // Insert at index 
-    void insertAt(int index, T value) {
-        if (index < 0 || index > count) return;
-        if (index == 0) {
-            insertFront(value);
-            return;
-        }
-        
-        Node* newNode = new Node(value);
-        Node* temp = head;
-        for (int i = 0; i < index - 1; i++) {
-            temp = temp->next;
-        }
-
-        newNode->next = temp->next;
-        temp->next = newNode;
-        count++;
+// Insert at index
+template<typename T>
+void insertAt(Node<T>*& head, int index, T value) {
+    if (index < 0) return;
+    if (index == 0) {
+        insertFront(head, value);
+        return;
     }
-
-
-    // Remove value
-    void remove(T value) {
-        if (head == nullptr) return;
-        if (head->data == value) {
-            Node* del = head;
-            head = head->next;
-            delete del;
-            count--;
-        }
-        
-        Node* temp = head;
-        while(temp->next != nullptr && temp->next->data != value) {
-            temp = temp->next;
-        }
-
-        if(temp->next != nullptr) {
-            Node* del = temp->next;
-            temp->next = del->next;
-            delete del;
-            count--;
-        }
+    Node<T>* temp = head;
+    for (int i = 0; i < index - 1; i++) {
+        if (temp == nullptr) return; // index out of bounds
+        temp = temp->next;
     }
+    if (temp == nullptr) return;
+    Node<T>* newNode = createNode(value);
+    newNode->next = temp->next;
+    temp->next = newNode;
+}
 
-    // Remove at index 
-    void removeAt(int index) {
-        if (index < 0 || index >= count) return;
-        if (index == 0) {
-            Node* del = head;
-            head = head->next;
-            delete del;
-            count--;
-            return;
-        }
-
-        Node* temp = head;
-        for(int i = 0; i < index - 1; i++) {
-            temp = temp->next;
-        }
-
-        Node* del = temp->next;
+// Remove value (first occurrence)
+template<typename T>
+void remove(Node<T>*& head, T value) {
+    if (head == nullptr) return;
+    if (head->data == value) {
+        Node<T>* del = head;
+        head = head->next;
+        delete del;
+        return;
+    }
+    Node<T>* temp = head;
+    while (temp->next != nullptr && temp->next->data != value) {
+        temp = temp->next;
+    }
+    if (temp->next != nullptr) {
+        Node<T>* del = temp->next;
         temp->next = del->next;
         delete del;
-        count--;
     }
+}
 
-    // Find Value
-    bool find(T value) {
-        Node* temp = head;
-        while(temp->next != nullptr) {
-            if (temp->data == value) return true;
-            temp = temp->next;
-        }
-        return false;
+// Remove at index
+template<typename T>
+void removeAt(Node<T>*& head, int index) {
+    if (head == nullptr || index < 0) return;
+    if (index == 0) {
+        Node<T>* del = head;
+        head = head->next;
+        delete del;
+        return;
     }
-
-    // Print
-    void print() {
-        Node* temp = head;
-        while(temp != nullptr) {
-            cout << temp->data << ' ';
-            temp = temp->next;
-        }
-
-        cout << endl;
+    Node<T>* temp = head;
+    for (int i = 0; i < index - 1; i++) {
+        if (temp->next == nullptr) return;
+        temp = temp->next;
     }
+    if (temp->next == nullptr) return;
+    Node<T>* del = temp->next;
+    temp->next = del->next;
+    delete del;
+}
 
-
-    // Size
-    int size() {
-        return count;
+// Find value
+template<typename T>
+bool find(Node<T>* head, T value) {
+    Node<T>* temp = head;
+    while (temp != nullptr) {
+        if (temp->data == value) return true;
+        temp = temp->next;
     }
+    return false;
+}
 
-
-    // Clear list
-    void clear() {
-        while(head != nullptr) {
-            Node* temp = head;
-            head = head->next;
-            delete temp;
-        }
-        count = 0;
+// Print list
+template<typename T>
+void print(Node<T>* head) {
+    Node<T>* temp = head;
+    while (temp != nullptr) {
+        std::cout << temp->data << ' ';
+        temp = temp->next;
     }
+    std::cout << std::endl;
+}
 
-    // Check empty
-    bool empty() {
-        return head == nullptr;
+// Size of list
+template<typename T>
+int size(Node<T>* head) {
+    int count = 0;
+    Node<T>* temp = head;
+    while (temp != nullptr) {
+        count++;
+        temp = temp->next;
     }
-};
+    return count;
+}
+
+// Clear list
+template<typename T>
+void clear(Node<T>*& head) {
+    while (head != nullptr) {
+        Node<T>* temp = head;
+        head = head->next;
+        delete temp;
+    }
+}
+
+// Check empty
+template<typename T>
+bool empty(Node<T>* head) {
+    return head == nullptr;
+}
