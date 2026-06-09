@@ -31,33 +31,59 @@ struct Task {
     string dueDate;         // YYYY-MM-DD
     bool isCompleted;       // Completion status
 
-    // Default constructor (required for heap arrays/data buffers in library structs)
+    // Default constructor
     Task() : id(0), title(""), description(""), priority(3), dueDate(""), isCompleted(false) {}
 
     Task(int id, string title, string desc, int priority, string dueDate)
         : id(id), title(title), description(desc), priority(priority), dueDate(dueDate), isCompleted(false) {}
 
-    // Operator overloads for sorting/heaps (Priority Queue)
-    // PriorityQueue in the library is a Min-Heap: heap[parent] <= heap[index].
-    // If we want high-priority tasks (priority value = 1) at the root, we want them to compare "smaller".
+    // Operator overloads for sorting/heaps
+    // Order rules: 
+    // 1. Incompleted tasks < Completed tasks
+    // 2. Tasks with due dates < Tasks without due dates
+    // 3. By Date (ascending)
+    // 4. By Priority (ascending: 1 -> 3)
+    // 5. By ID (ascending)
     bool operator<(const Task& other) const {
-        return priority < other.priority;
-    }
-
-    bool operator<=(const Task& other) const {
-        return priority <= other.priority;
-    }
-
-    bool operator>(const Task& other) const {
-        return priority > other.priority;
-    }
-
-    bool operator>=(const Task& other) const {
-        return priority >= other.priority;
+        if (isCompleted != other.isCompleted) return !isCompleted;
+        
+        int len1 = dueDate.length();
+        int len2 = other.dueDate.length();
+        
+        if (len1 == 0 || len2 == 0) {
+            if (len1 != len2) return len1 > len2;
+        } else {
+            int minLen = (len1 < len2) ? len1 : len2;
+            string sub1 = dueDate.substr(0, minLen);
+            string sub2 = other.dueDate.substr(0, minLen);
+            
+            if (sub1 != sub2) {
+                return sub1 < sub2; // Chronological comparison
+            }
+            
+            if (len1 != len2) {
+                return len1 > len2; // Specificity comparison
+            }
+        }
+        
+        if (priority != other.priority) return priority < other.priority;
+        return id < other.id;
     }
 
     bool operator==(const Task& other) const {
         return id == other.id;
+    }
+
+    bool operator<=(const Task& other) const {
+        return (*this < other) || (*this == other);
+    }
+
+    bool operator>(const Task& other) const {
+        return !(*this <= other);
+    }
+
+    bool operator>=(const Task& other) const {
+        return !(*this < other);
     }
 
     bool operator!=(const Task& other) const {
@@ -74,7 +100,6 @@ struct TodoListApp {
     Node<Task>* taskListHead;
 
     // 2. HashTable: Maps task ID (int) -> Task for O(1) retrieval
-    // Note: K must support % operator (int is perfect). HashTable size 101 by default.
     HashTable<int, Task> taskLookup;
 
     // 3. PriorityQueue: Min-Heap for fetching the highest-priority tasks
@@ -92,6 +117,7 @@ struct TodoListApp {
 // Forward declaration of load and save helpers
 void loadApp(TodoListApp& app);
 void saveApp(const TodoListApp& app);
+void viewAllTasks(const TodoListApp& app);
 
 /**
  * @brief Initializes the TodoListApp state and loads saved data.
@@ -114,13 +140,17 @@ void destroyApp(TodoListApp& app) {
  * @brief Saves current active tasks to file.
  */
 void saveApp(const TodoListApp& app) {
-    if (!fs::exists("data")) {
-        fs::create_directory("data");
+    string dataDir = "data";
+    string filePath = "data/todo_data.txt";
+    if (fs::exists("../src")) {
+        dataDir = "../data";
+        filePath = "../data/todo_data.txt";
     }
-    ofstream outFile("data/todo_data.txt");
-    if (!outFile.is_open()) {
-        outFile.open("../data/todo_data.txt");
+
+    if (!fs::exists(dataDir)) {
+        fs::create_directory(dataDir);
     }
+    ofstream outFile(filePath);
     if (!outFile.is_open()) {
         cout << "Warning: Could not open todo_data.txt for writing!" << endl;
         return;
@@ -144,6 +174,87 @@ void saveApp(const TodoListApp& app) {
 }
 
 /**
+ * @brief Sorts tasks inside the linked list based on Task operator< rules.
+ */
+void sortTasks(TodoListApp& app) {
+    int count = size(app.taskListHead);
+    if (count <= 1) return;
+
+    Task* arr = new Task[count];
+    Node<Task>* curr = app.taskListHead;
+    int i = 0;
+    while (curr != nullptr) {
+        arr[i++] = curr->data;
+        curr = curr->next;
+    }
+
+    quickSort(arr, 0, count - 1);
+    clear(app.taskListHead);
+
+    for (int j = 0; j < count; ++j) {
+        insertBack(app.taskListHead, arr[j]);
+    }
+
+    delete[] arr;
+}
+
+/**
+ * @brief Re-indexes all task IDs sequentially from 1 to N and rebuilds structures.
+ */
+void reindexTasks(TodoListApp& app) {
+    HashTable<int, int> oldToNew;
+    int newId = 1;
+    Node<Task>* temp = app.taskListHead;
+    while (temp) {
+        oldToNew.insert(temp->data.id, newId);
+        temp->data.id = newId;
+        newId++;
+        temp = temp->next;
+    }
+    app.nextTaskId = newId;
+
+    // Rebuild lookup
+    app.taskLookup.clear();
+    temp = app.taskListHead;
+    while(temp) {
+        app.taskLookup.insert(temp->data.id, temp->data);
+        temp = temp->next;
+    }
+
+    // Rebuild Priority Queue
+    while(!app.urgentTasks.empty()) app.urgentTasks.extract();
+    temp = app.taskListHead;
+    while(temp) {
+        if (!temp->data.isCompleted) {
+           app.urgentTasks.insert(temp->data);
+        }
+        temp = temp->next;
+    }
+
+    // Rebuild todayQueue
+    int qSize = app.todayQueue.size();
+    for(int i=0; i<qSize; i++) {
+        Task t = app.todayQueue.dequeue();
+        if (oldToNew.contains(t.id)) {
+            t.id = oldToNew.find(t.id);
+            app.todayQueue.enqueue(t);
+        }
+    }
+}
+
+/**
+ * @brief Unified helper to synchronize sort, reindex, and save operations.
+ */
+void syncData(TodoListApp& app, bool silent = true) {
+    sortTasks(app);
+    reindexTasks(app);
+    saveApp(app);
+    if (!silent) {
+        viewAllTasks(app);
+    }
+}
+
+/**
  * @brief Loads tasks from file.
  */
 void loadApp(TodoListApp& app) {
@@ -151,20 +262,19 @@ void loadApp(TodoListApp& app) {
     clear(app.taskListHead);
     app.taskListHead = nullptr;
     app.taskLookup.clear();
-    // Safely reset state indices/counters instead of assigning temporaries (to avoid double-free/dangling pointers)
     app.urgentTasks.count = 0;
     app.todayQueue.frontIndex = 0;
     app.todayQueue.rearIndex = -1;
     app.undoStack.topIndex = -1;
     app.nextTaskId = 1;
 
-    ifstream inFile("data/todo_data.txt");
-    if (!inFile.is_open()) {
-        inFile.open("../data/todo_data.txt");
+    string filePath = "data/todo_data.txt";
+    if (fs::exists("../src")) {
+        filePath = "../data/todo_data.txt";
     }
-    if (!inFile.is_open()) {
-        return; // File doesn't exist yet, normal on first boot
-    }
+
+    ifstream inFile(filePath);
+    if (!inFile.is_open()) return;
 
     string line;
     while (getline(inFile, line)) {
@@ -187,46 +297,110 @@ void loadApp(TodoListApp& app) {
             Task t(id, title, desc, priority, dueDate);
             t.isCompleted = completed;
 
-            // Insert into local structures
+            // Raw insertion, bypass syncData because we are loading
             insertBack(app.taskListHead, t);
-            app.taskLookup.insert(t.id, t);
-            if (t.priority == 1) {
-                app.urgentTasks.insert(t);
-            }
-
-            if (id >= app.nextTaskId) {
-                app.nextTaskId = id + 1;
-            }
         }
     }
     inFile.close();
+    
+    // Sort and re-index naturally ensures loaded data matches correct format
+    syncData(app, true);
+}
+
+/**
+ * @brief Normalizes date string (e.g. 2026-2-7 to 2026-02-07, also converts / to -)
+ */
+string formatDateString(string dateStr) {
+    if (dateStr.empty() || dateStr == "clear" || dateStr == "none") {
+        return dateStr;
+    }
+    
+    for(char& c : dateStr) {
+        if (c == '/') c = '-';
+    }
+    
+    stringstream ss(dateStr);
+    string part;
+    vector<string> parts;
+    
+    while (getline(ss, part, '-')) {
+        parts.push_back(part);
+    }
+    
+    string result = "";
+    for (size_t i = 0; i < parts.size(); i++) {
+        string p = parts[i];
+        if (i > 0 && p.length() == 1) { // Pad month and day
+            p = "0" + p;
+        }
+        result += p;
+        if (i < parts.size() - 1) {
+            result += "-";
+        }
+    }
+    
+    return result;
+}
+
+/**
+ * @brief Validates if a formatted date string represents a real date.
+ */
+bool isValidDate(const string& dateStr) {
+    if (dateStr.empty() || dateStr == "clear" || dateStr == "none") return true;
+
+    stringstream ss(dateStr);
+    string part;
+    vector<string> parts;
+    
+    while (getline(ss, part, '-')) {
+        parts.push_back(part);
+    }
+    
+    if (parts.size() > 3 || parts.size() == 0) return false;
+    
+    try {
+        int year = stoi(parts[0]);
+        if (year < 1900 || year > 2100) return false;
+        
+        if (parts.size() >= 2) {
+            int month = stoi(parts[1]);
+            if (month < 1 || month > 12) return false;
+            
+            if (parts.size() == 3) {
+                int day = stoi(parts[2]);
+                if (day < 1) return false;
+                
+                int maxDays = 31;
+                if (month == 4 || month == 6 || month == 9 || month == 11) maxDays = 30;
+                else if (month == 2) {
+                    bool isLeap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+                    maxDays = isLeap ? 29 : 28;
+                }
+                if (day > maxDays) return false;
+            }
+        }
+    } catch (...) {
+        return false;
+    }
+    
+    return true;
 }
 
 /**
  * @brief Adds a new task to the manager.
- * Integrates: LinkedList (insertBack) and HashTable (insert).
  */
 void addTask(TodoListApp& app, const string& title, const string& desc, int priority, const string& dueDate) {
-    Task newTask(app.nextTaskId++, title, desc, priority, dueDate);
+    string formattedDate = formatDateString(dueDate);
+    Task newTask(app.nextTaskId++, title, desc, priority, formattedDate);
     
-    // 1. Insert into LinkedList
     insertBack(app.taskListHead, newTask);
+    syncData(app, true);
     
-    // 2. Insert into HashTable for lookup
-    app.taskLookup.insert(newTask.id, newTask);
-
-    // 3. Insert into Priority Queue if it is high priority (priority == 1)
-    if (priority == 1) {
-        app.urgentTasks.insert(newTask);
-    }
-
-    saveApp(app);
-    cout << "Added task successfully! ID: " << newTask.id << endl;
+    cout << "Added task successfully! (Tasks have been auto-sorted and re-indexed)" << endl;
 }
 
 /**
  * @brief Displays all active tasks.
- * Integrates: LinkedList traversal.
  */
 void viewAllTasks(const TodoListApp& app) {
     if (empty(app.taskListHead)) {
@@ -240,7 +414,7 @@ void viewAllTasks(const TodoListApp& app) {
         Task t = temp->data;
         cout << "[" << t.id << "] " << t.title 
              << " | Priority: " << t.priority 
-             << " | Due: " << t.dueDate 
+             << " | Due: " << (t.dueDate.empty() ? "None" : t.dueDate)
              << " | Completed: " << (t.isCompleted ? "Yes" : "No") << endl;
         temp = temp->next;
     }
@@ -248,30 +422,7 @@ void viewAllTasks(const TodoListApp& app) {
 }
 
 /**
- * @brief Finds a task using its ID in O(1) average time.
- * Integrates: HashTable (find).
- */
-void searchTaskById(TodoListApp& app, int id) {
-    try {
-        if (app.taskLookup.contains(id)) {
-            Task t = app.taskLookup.find(id);
-            cout << "\n--- Task Found (ID: " << t.id << ") ---" << endl;
-            cout << "Title: " << t.title << endl;
-            cout << "Description: " << t.description << endl;
-            cout << "Priority: " << t.priority << endl;
-            cout << "Due Date: " << t.dueDate << endl;
-            cout << "Status: " << (t.isCompleted ? "Completed" : "In Progress") << endl;
-        } else {
-            cout << "Task ID " << id << " not found in lookup table." << endl;
-        }
-    } catch (const exception& e) {
-        cout << "Error during lookup: " << e.what() << endl;
-    }
-}
-
-/**
- * @brief Removes a task by ID. Stores the removed task in the undo stack.
- * Integrates: LinkedList (remove), HashTable (remove), and Stack (push).
+ * @brief Removes a task by ID.
  */
 void deleteTask(TodoListApp& app, int id) {
     if (!app.taskLookup.contains(id)) {
@@ -279,29 +430,19 @@ void deleteTask(TodoListApp& app, int id) {
         return;
     }
 
-    // 1. Get task from HashTable lookup
     Task taskToDelete = app.taskLookup.find(id);
-
-    // 2. Remove from LinkedList
     remove(app.taskListHead, taskToDelete);
 
-    // 3. Remove from HashTable
-    app.taskLookup.remove(id);
-
-    // 4. Push to Undo Stack
     try {
         app.undoStack.push(taskToDelete);
-    } catch (...) {
-        // Stack capacity reached, ignore
-    }
-
-    saveApp(app);
-    cout << "Deleted task with ID: " << id << " (Can be undone using undo)." << endl;
+    } catch (...) {}
+    
+    syncData(app, true);
+    cout << "Deleted task with old ID: " << id << " and re-indexed remaining tasks." << endl;
 }
 
 /**
  * @brief Restores the last deleted task.
- * Integrates: Stack (pop, empty), LinkedList (insertBack), and HashTable (insert).
  */
 void undoDelete(TodoListApp& app) {
     if (app.undoStack.empty()) {
@@ -309,22 +450,16 @@ void undoDelete(TodoListApp& app) {
         return;
     }
 
-    // 1. Pop from stack
     Task restoredTask = app.undoStack.pop();
-
-    // 2. Insert back to list
     insertBack(app.taskListHead, restoredTask);
-
-    // 3. Insert back to lookup
-    app.taskLookup.insert(restoredTask.id, restoredTask);
-
-    saveApp(app);
-    cout << "Restored task: [" << restoredTask.id << "] " << restoredTask.title << endl;
+    syncData(app, true);
+    
+    cout << "Restored task: " << restoredTask.title << " (Tasks have been auto-sorted and re-indexed)" << endl;
+    viewAllTasks(app);
 }
 
 /**
  * @brief Retrieves the next highest-priority task.
- * Integrates: PriorityQueue (extract, empty).
  */
 void processNextUrgentTask(TodoListApp& app) {
     if (app.urgentTasks.empty()) {
@@ -335,73 +470,66 @@ void processNextUrgentTask(TodoListApp& app) {
     Task nextTask = app.urgentTasks.extract();
     cout << "\n>>> NEXT URGENT TASK TO DO: " << endl;
     cout << "[" << nextTask.id << "] " << nextTask.title 
-         << " (Priority: " << nextTask.priority << ")" << endl;
+         << " (Priority: " << nextTask.priority << ", Due: " << nextTask.dueDate << ")" << endl;
 }
 
 /**
- * @brief Enqueues a task to today's work pipeline.
- * Integrates: Queue (enqueue).
+ * @brief Edits an existing task.
  */
-void queueForToday(TodoListApp& app, int id) {
+void editTask(TodoListApp& app, int id, const string& newTitle, const string& newDesc, int newPriority, const string& newDueDate) {
     if (!app.taskLookup.contains(id)) {
         cout << "Task ID " << id << " not found." << endl;
         return;
     }
 
-    Task taskToQueue = app.taskLookup.find(id);
-    try {
-        app.todayQueue.enqueue(taskToQueue);
-        cout << "Task \"" << taskToQueue.title << "\" added to today's workflow." << endl;
-    } catch (...) {
-        cout << "Today's queue is full!" << endl;
+    string formattedDate = formatDateString(newDueDate);
+
+    Node<Task>* temp = app.taskListHead;
+    while (temp) {
+        if (temp->data.id == id) {
+            if (!newTitle.empty()) temp->data.title = newTitle;
+            if (!newDesc.empty()) temp->data.description = newDesc;
+            if (newPriority >= 1 && newPriority <= 3) temp->data.priority = newPriority;
+            if (!formattedDate.empty()) {
+                if (formattedDate == "clear" || formattedDate == "none") {
+                    temp->data.dueDate = "";
+                } else {
+                    temp->data.dueDate = formattedDate;
+                }
+            }
+            break;
+        }
+        temp = temp->next;
     }
+
+    syncData(app, true);
+    cout << "Task [" << id << "] edited successfully! Data automatically re-sorted and re-indexed." << endl;
 }
 
 /**
- * @brief Serves/completes the first task in today's pipeline.
- * Integrates: Queue (dequeue, empty).
+ * @brief Mark a task as completed
  */
-void completeTodayTask(TodoListApp& app) {
-    if (app.todayQueue.empty()) {
-        cout << "No tasks scheduled for today." << endl;
+void markTaskCompleted(TodoListApp& app, int id) {
+    if (!app.taskLookup.contains(id)) {
+        cout << "Task ID " << id << " not found." << endl;
         return;
     }
-
-    Task t = app.todayQueue.dequeue();
-    cout << "Completed task: \"" << t.title << "\" from today's workflow!" << endl;
-}
-
-/**
- * @brief Sorts active tasks by priority using quickSort from the library.
- * Integrates: Algorithms (quickSort).
- */
-void sortTasksByPriority(TodoListApp& app) {
-    int count = size(app.taskListHead);
-    if (count <= 1) return;
-
-    // 1. Copy linked list nodes to a dynamic array
-    Task* arr = new Task[count];
-    Node<Task>* curr = app.taskListHead;
-    int i = 0;
-    while (curr != nullptr) {
-        arr[i++] = curr->data;
-        curr = curr->next;
+    
+    Task t = app.taskLookup.find(id);
+    if (t.isCompleted) {
+        cout << "Task is already completed!" << endl;
+        return;
     }
-
-    // 2. Run quickSort from Algorithms.hpp
-    // Compares tasks by priority (1 is highest, 3 is lowest).
-    quickSort(arr, 0, count - 1);
-
-    // 3. Clear existing list structure
-    clear(app.taskListHead);
-
-    // 4. Rebuild the list with sorted tasks
-    for (int j = 0; j < count; ++j) {
-        insertBack(app.taskListHead, arr[j]);
+    
+    Node<Task>* temp = app.taskListHead;
+    while (temp) {
+        if (temp->data.id == id) {
+            temp->data.isCompleted = true;
+            break;
+        }
+        temp = temp->next;
     }
-
-    delete[] arr;
-    saveApp(app);
-    cout << "Sorted tasks by priority successfully!" << endl;
-    viewAllTasks(app);
+    
+    syncData(app, true);
+    cout << "Task [" << id << "] marked as completed! Data automatically re-sorted and re-indexed." << endl;
 }

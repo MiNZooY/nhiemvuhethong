@@ -1,38 +1,49 @@
 #include "todolist.hpp"
 #include <iostream>
 #include <string>
+#include <cstdlib>
 
 using namespace std;
 
+void clearScreen() {
+#ifdef _WIN32
+    system("cls");
+#else
+    system("clear");
+#endif
+}
+
+void pressEnterToContinue() {
+    cout << "\nPress Enter to return to menu...";
+    string dummy;
+    getline(cin, dummy);
+}
+
 void showMenu() {
-    cout << "\n==============================================" << endl;
+    cout << "==============================================" << endl;
     cout << "           TODO LIST APPLICATION              " << endl;
     cout << "==============================================" << endl;
     cout << " 1. Add New Task" << endl;
     cout << " 2. View All Tasks" << endl;
-    cout << " 3. Search Task by ID" << endl;
-    cout << " 4. Delete Task" << endl;
-    cout << " 5. Undo Last Deletion" << endl;
-    cout << " 6. View Next Urgent Task" << endl;
-    cout << " 7. Add Task to Today's Queue" << endl;
-    cout << " 8. Complete First Task in Today's Queue" << endl;
-    cout << " 9. Sort All Tasks by Priority" << endl;
+    cout << " 3. Delete Task" << endl;
+    cout << " 4. Undo Last Deletion" << endl;
+    cout << " 5. View Next Urgent Task" << endl;
+    cout << " 6. Edit Task" << endl;
+    cout << " 7. Mark Task as Completed" << endl;
     cout << " 0. Exit" << endl;
     cout << "==============================================" << endl;
-    cout << "Enter your choice (0-9): ";
+    cout << "Enter your choice (0-7): ";
 }
 
 int main() {
     TodoListApp app;
     initApp(app);
 
-    cout << "Welcome to the Course Project TodoList App!" << endl;
-    cout << "Procedural C++ Templates Library Integration Demo." << endl;
-
     string choiceStr;
     int choice = -1;
 
     do {
+        clearScreen();
         showMenu();
         getline(cin, choiceStr);
         if (choiceStr.empty()) continue;
@@ -40,16 +51,25 @@ int main() {
         try {
             choice = stoi(choiceStr);
         } catch(...) {
-            cout << "\n[Error] Invalid input! Please enter a number between 0 and 9." << endl;
+            cout << "\n[Error] Invalid input! Please enter a number between 0 and 7." << endl;
+            pressEnterToContinue();
             continue;
         }
+
+        if (choice == 0) {
+            clearScreen();
+            cout << "\nSaving data... Exiting. Thank you for using TodoList App!" << endl;
+            break;
+        }
+
+        clearScreen(); // Clear screen before showing task output
 
         switch (choice) {
             case 1: {
                 string title, desc, dueDate, priorityStr;
                 int priority = 3;
 
-                cout << "\n--- Add New Task ---" << endl;
+                cout << "--- Add New Task ---" << endl;
                 cout << "Enter title: ";
                 getline(cin, title);
                 cout << "Enter description: ";
@@ -65,8 +85,14 @@ int main() {
                     priority = 3;
                 }
 
-                cout << "Enter due date (e.g. YYYY-MM-DD): ";
-                getline(cin, dueDate);
+                while (true) {
+                    cout << "Enter due date (YYYY-MM-DD or leave blank): ";
+                    getline(cin, dueDate);
+                    if (isValidDate(formatDateString(dueDate))) {
+                        break;
+                    }
+                    cout << "  -> [Error] Invalid date! Please enter a real date (e.g., 2026-02-07)." << endl;
+                }
 
                 addTask(app, title, desc, priority, dueDate);
                 break;
@@ -77,19 +103,8 @@ int main() {
             case 3: {
                 string idStr;
                 int id;
-                cout << "Enter task ID to search: ";
-                getline(cin, idStr);
-                try {
-                    id = stoi(idStr);
-                    searchTaskById(app, id);
-                } catch(...) {
-                    cout << "[Error] Invalid ID format." << endl;
-                }
-                break;
-            }
-            case 4: {
-                string idStr;
-                int id;
+                cout << "--- Delete Task ---" << endl;
+                viewAllTasks(app); // Show list of tasks so user knows what to delete
                 cout << "Enter task ID to delete: ";
                 getline(cin, idStr);
                 try {
@@ -100,37 +115,83 @@ int main() {
                 }
                 break;
             }
-            case 5:
+            case 4:
+                cout << "--- Undo Deletion ---" << endl;
                 undoDelete(app);
                 break;
-            case 6:
+            case 5:
+                cout << "--- Next Urgent Task ---" << endl;
                 processNextUrgentTask(app);
                 break;
-            case 7: {
+            case 6: {
                 string idStr;
                 int id;
-                cout << "Enter task ID to add to today's queue: ";
+                cout << "--- Edit Task ---" << endl;
+                viewAllTasks(app);
+                cout << "Enter task ID to edit: ";
                 getline(cin, idStr);
                 try {
                     id = stoi(idStr);
-                    queueForToday(app, id);
+                    if (!app.taskLookup.contains(id)) {
+                        cout << "[Error] Task ID not found." << endl;
+                        break;
+                    }
+                    Task t = app.taskLookup.find(id);
+                    
+                    cout << "\nEditing Task [" << t.id << "] " << t.title << endl;
+                    cout << "Leave field empty and press Enter to keep current value." << endl;
+                    
+                    string title, desc, priorityStr, dueDate;
+                    
+                    cout << "New title (current: " << t.title << "): ";
+                    getline(cin, title);
+                    
+                    cout << "New description (current: " << t.description << "): ";
+                    getline(cin, desc);
+                    
+                    cout << "New priority (1=High, 2=Medium, 3=Low, current: " << t.priority << "): ";
+                    getline(cin, priorityStr);
+                    int priority = -1;
+                    if (!priorityStr.empty()) {
+                        try { priority = stoi(priorityStr); } catch(...) {}
+                    }
+                    
+                    while (true) {
+                        cout << "New due date (current: " << (t.dueDate.empty() ? "None" : t.dueDate) << ") [Type 'clear' to remove]: ";
+                        getline(cin, dueDate);
+                        if (dueDate.empty() || isValidDate(formatDateString(dueDate))) {
+                            break;
+                        }
+                        cout << "  -> [Error] Invalid date! Please enter a real date." << endl;
+                    }
+                    
+                    editTask(app, id, title, desc, priority, dueDate);
                 } catch(...) {
                     cout << "[Error] Invalid ID format." << endl;
                 }
                 break;
             }
-            case 8:
-                completeTodayTask(app);
+            case 7: {
+                string idStr;
+                int id;
+                cout << "--- Mark Task Completed ---" << endl;
+                viewAllTasks(app); // Show list of tasks so user knows what to complete
+                cout << "Enter task ID to mark as completed: ";
+                getline(cin, idStr);
+                try {
+                    id = stoi(idStr);
+                    markTaskCompleted(app, id);
+                } catch(...) {
+                    cout << "[Error] Invalid ID format." << endl;
+                }
                 break;
-            case 9:
-                sortTasksByPriority(app);
-                break;
-            case 0:
-                cout << "\nSaving data... Exiting. Thank you for using TodoList App!" << endl;
-                break;
+            }
             default:
-                cout << "\n[Error] Invalid choice! Please select between 0 and 9." << endl;
+                cout << "\n[Error] Invalid choice! Please select between 0 and 7." << endl;
         }
+
+        pressEnterToContinue();
+
     } while (choice != 0);
 
     destroyApp(app);
