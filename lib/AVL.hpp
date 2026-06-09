@@ -183,4 +183,42 @@ struct AVL {
         inorder(root);
         cout << endl;
     }
+
+
+    // Preorder Helper
+    void preorder(Node* node) {
+        if(node == nullptr) {
+            return;
+        }
+
+        cout << node->data << " ";
+        preorder(node->left);
+        preorder(node->right);
+    }
+
+
+    // Preorder traversal
+    void preorder() {
+        preorder(root);
+        cout << endl;
+    }
+
+
+    // Postorder helper
+    void postorder(Node* node) {
+        if(node == nullptr) {
+            return;
+        }
+
+        postorder(node->left);
+        postorder(node->right);
+        cout << node->data << " ";
+    }
+
+
+    // Postorder traversal
+    void postorder() {
+        postorder(root);
+        cout << endl;
+    }
 };
