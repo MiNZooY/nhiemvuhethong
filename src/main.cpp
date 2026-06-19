@@ -94,12 +94,53 @@ int main() {
                     cout << "  -> [Error] Invalid date! Please enter a real date (e.g., 2026-02-07)." << endl;
                 }
 
-                addTask(app, title, desc, priority, dueDate);
+                string project;
+                cout << "Enter project/goal (or leave blank): ";
+                getline(cin, project);
+
+                addTask(app, title, desc, priority, dueDate, project);
                 break;
             }
-            case 2:
+            case 2: {
                 viewAllTasks(app);
+                cout << "\nOptions: [s] Sort tasks manually | [Enter] Return to menu: ";
+                string opt;
+                getline(cin, opt);
+                if (opt == "s" || opt == "S") {
+                    cout << "\n--- Sort Tasks ---" << endl;
+                    cout << "1. Alphabetical (A-Z, Case-Insensitive)" << endl;
+                    cout << "2. Alphabetical (Z-A)" << endl;
+                    cout << "3. By Priority (Highest first)" << endl;
+                    cout << "Choose sorting method (1-3): ";
+                    string sortChoiceStr;
+                    getline(cin, sortChoiceStr);
+                    
+                    bool sorted = false;
+                    if (sortChoiceStr == "1") {
+                        sortTasks(app, CompareTaskTitleAscCaseInsensitive());
+                        cout << "\nTasks sorted Alphabetically (A-Z)." << endl;
+                        sorted = true;
+                    } else if (sortChoiceStr == "2") {
+                        sortTasks(app, CompareTaskTitleDesc());
+                        cout << "\nTasks sorted Alphabetically (Z-A)." << endl;
+                        sorted = true;
+                    } else if (sortChoiceStr == "3") {
+                        sortTasks(app, CompareTaskPriority());
+                        cout << "\nTasks sorted by Priority." << endl;
+                        sorted = true;
+                    } else {
+                        cout << "\n[Error] Invalid sorting choice." << endl;
+                    }
+                    
+                    if (sorted) {
+                        reindexTasks(app);
+                        saveApp(app);
+                        cout << "\n";
+                        viewAllTasks(app); // Show the freshly sorted list
+                    }
+                }
                 break;
+            }
             case 3: {
                 string idStr;
                 int id;
@@ -165,7 +206,11 @@ int main() {
                         cout << "  -> [Error] Invalid date! Please enter a real date." << endl;
                     }
                     
-                    editTask(app, id, title, desc, priority, dueDate);
+                    string project;
+                    cout << "New project (current: " << (t.project.empty() ? "None" : t.project) << ") [Type 'clear' to remove]: ";
+                    getline(cin, project);
+
+                    editTask(app, id, title, desc, priority, dueDate, project);
                 } catch(...) {
                     cout << "[Error] Invalid ID format." << endl;
                 }

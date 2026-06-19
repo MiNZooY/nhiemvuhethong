@@ -30,12 +30,13 @@ struct Task {
     int priority;           // Priority level (e.g., 1 = High, 2 = Medium, 3 = Low)
     string dueDate;         // YYYY-MM-DD
     bool isCompleted;       // Completion status
+    string project;         // Project or Goal
 
     // Default constructor
-    Task() : id(0), title(""), description(""), priority(3), dueDate(""), isCompleted(false) {}
+    Task() : id(0), title(""), description(""), priority(3), dueDate(""), isCompleted(false), project("") {}
 
-    Task(int id, string title, string desc, int priority, string dueDate)
-        : id(id), title(title), description(desc), priority(priority), dueDate(dueDate), isCompleted(false) {}
+    Task(int id, string title, string desc, int priority, string dueDate, string project = "")
+        : id(id), title(title), description(desc), priority(priority), dueDate(dueDate), isCompleted(false), project(project) {}
 
     // Operator overloads for sorting/heaps
     // Order rules: 
@@ -122,7 +123,7 @@ void viewAllTasks(const TodoListApp& app);
 /**
  * @brief Initializes the TodoListApp state and loads saved data.
  */
-void initApp(TodoListApp& app) {
+inline void initApp(TodoListApp& app) {
     app.taskListHead = nullptr;
     app.nextTaskId = 1;
     loadApp(app);
@@ -131,7 +132,7 @@ void initApp(TodoListApp& app) {
 /**
  * @brief Cleans up, saves data, and deallocates the TodoListApp state.
  */
-void destroyApp(TodoListApp& app) {
+inline void destroyApp(TodoListApp& app) {
     saveApp(app);
     clear(app.taskListHead);
 }
@@ -139,7 +140,7 @@ void destroyApp(TodoListApp& app) {
 /**
  * @brief Saves current active tasks to file.
  */
-void saveApp(const TodoListApp& app) {
+inline void saveApp(const TodoListApp& app) {
     string dataDir = "data";
     string filePath = "data/todo_data.txt";
     if (fs::exists("../src")) {
@@ -157,7 +158,7 @@ void saveApp(const TodoListApp& app) {
     }
 
     // Write header
-    outFile << "# ID|Title|Description|Priority|DueDate|IsCompleted\n";
+    outFile << "# ID|Title|Description|Priority|DueDate|IsCompleted|Project\n";
 
     Node<Task>* temp = app.taskListHead;
     while (temp != nullptr) {
@@ -167,16 +168,65 @@ void saveApp(const TodoListApp& app) {
                 << t.description << "|"
                 << t.priority << "|"
                 << t.dueDate << "|"
-                << (t.isCompleted ? 1 : 0) << "\n";
+                << (t.isCompleted ? 1 : 0) << "|"
+                << t.project << "\n";
         temp = temp->next;
     }
     outFile.close();
 }
 
 /**
- * @brief Sorts tasks inside the linked list based on Task operator< rules.
+ * @brief Custom comparators to sort tasks in different orders.
  */
-void sortTasks(TodoListApp& app) {
+struct CompareTaskTitleAsc {
+    bool operator()(const Task& a, const Task& b) const {
+        return a.title < b.title;
+    }
+};
+
+struct CompareTaskTitleDesc {
+    bool operator()(const Task& a, const Task& b) const {
+        return a.title > b.title;
+    }
+};
+
+struct CompareTaskTitleAscCaseInsensitive {
+    char toLower(char c) const {
+        if (c >= 'A' && c <= 'Z') {
+            return c + ('a' - 'A');
+        }
+        return c;
+    }
+
+    bool operator()(const Task& a, const Task& b) const {
+        int lenA = a.title.length();
+        int lenB = b.title.length();
+        int i = 0;
+
+        while (i < lenA && i < lenB) {
+            char charA = toLower(a.title[i]);
+            char charB = toLower(b.title[i]);
+            if (charA != charB) {
+                return charA < charB;
+            }
+            i++;
+        }
+        // If all compared characters are equal, the shorter string comes first
+        return lenA < lenB;
+    }
+};
+
+struct CompareTaskPriority {
+    bool operator()(const Task& a, const Task& b) const {
+        return a.priority < b.priority;
+    }
+};
+
+/**
+ * @brief Sorts tasks inside the linked list based on a comparator (defaults to Task operator<).
+ */
+template<typename Compare = less<Task>>
+inline void sortTasks(TodoListApp& app, Compare comp = Compare()) {
     int count = size(app.taskListHead);
     if (count <= 1) return;
 
@@ -188,7 +238,7 @@ void sortTasks(TodoListApp& app) {
         curr = curr->next;
     }
 
-    quickSort(arr, 0, count - 1);
+    quickSort(arr, 0, count - 1, comp);
     clear(app.taskListHead);
 
     for (int j = 0; j < count; ++j) {
@@ -201,7 +251,7 @@ void sortTasks(TodoListApp& app) {
 /**
  * @brief Re-indexes all task IDs sequentially from 1 to N and rebuilds structures.
  */
-void reindexTasks(TodoListApp& app) {
+inline void reindexTasks(TodoListApp& app) {
     HashTable<int, int> oldToNew;
     int newId = 1;
     Node<Task>* temp = app.taskListHead;
@@ -245,7 +295,7 @@ void reindexTasks(TodoListApp& app) {
 /**
  * @brief Unified helper to synchronize sort, reindex, and save operations.
  */
-void syncData(TodoListApp& app, bool silent = true) {
+inline void syncData(TodoListApp& app, bool silent = true) {
     sortTasks(app);
     reindexTasks(app);
     saveApp(app);
@@ -257,7 +307,7 @@ void syncData(TodoListApp& app, bool silent = true) {
 /**
  * @brief Loads tasks from file.
  */
-void loadApp(TodoListApp& app) {
+inline void loadApp(TodoListApp& app) {
     // Reset app state
     clear(app.taskListHead);
     app.taskListHead = nullptr;
@@ -288,13 +338,16 @@ void loadApp(TodoListApp& app) {
             getline(ss, desc, '|') &&
             getline(ss, priorityStr, '|') &&
             getline(ss, dueDate, '|') &&
-            getline(ss, completedStr)) {
+            getline(ss, completedStr, '|')) {
+
+            string projectStr = "";
+            getline(ss, projectStr); // Read remainder if exists
 
             int id = stoi(idStr);
             int priority = stoi(priorityStr);
-            bool completed = (completedStr == "1");
+            bool completed = (!completedStr.empty() && completedStr[0] == '1');
 
-            Task t(id, title, desc, priority, dueDate);
+            Task t(id, title, desc, priority, dueDate, projectStr);
             t.isCompleted = completed;
 
             // Raw insertion, bypass syncData because we are loading
@@ -310,7 +363,7 @@ void loadApp(TodoListApp& app) {
 /**
  * @brief Normalizes date string (e.g. 2026-2-7 to 2026-02-07, also converts / to -)
  */
-string formatDateString(string dateStr) {
+inline string formatDateString(string dateStr) {
     if (dateStr.empty() || dateStr == "clear" || dateStr == "none") {
         return dateStr;
     }
@@ -345,7 +398,7 @@ string formatDateString(string dateStr) {
 /**
  * @brief Validates if a formatted date string represents a real date.
  */
-bool isValidDate(const string& dateStr) {
+inline bool isValidDate(const string& dateStr) {
     if (dateStr.empty() || dateStr == "clear" || dateStr == "none") return true;
 
     stringstream ss(dateStr);
@@ -389,9 +442,9 @@ bool isValidDate(const string& dateStr) {
 /**
  * @brief Adds a new task to the manager.
  */
-void addTask(TodoListApp& app, const string& title, const string& desc, int priority, const string& dueDate) {
+inline void addTask(TodoListApp& app, const string& title, const string& desc, int priority, const string& dueDate, const string& project = "") {
     string formattedDate = formatDateString(dueDate);
-    Task newTask(app.nextTaskId++, title, desc, priority, formattedDate);
+    Task newTask(app.nextTaskId++, title, desc, priority, formattedDate, project);
     
     insertBack(app.taskListHead, newTask);
     syncData(app, true);
@@ -402,7 +455,7 @@ void addTask(TodoListApp& app, const string& title, const string& desc, int prio
 /**
  * @brief Displays all active tasks.
  */
-void viewAllTasks(const TodoListApp& app) {
+inline void viewAllTasks(const TodoListApp& app) {
     if (empty(app.taskListHead)) {
         cout << "No tasks available." << endl;
         return;
@@ -413,6 +466,7 @@ void viewAllTasks(const TodoListApp& app) {
     while (temp != nullptr) {
         Task t = temp->data;
         cout << "[" << t.id << "] " << t.title 
+             << (t.project.empty() ? "" : " [Project: " + t.project + "]")
              << " | Priority: " << t.priority 
              << " | Due: " << (t.dueDate.empty() ? "None" : t.dueDate)
              << " | Completed: " << (t.isCompleted ? "Yes" : "No") << endl;
@@ -424,7 +478,7 @@ void viewAllTasks(const TodoListApp& app) {
 /**
  * @brief Removes a task by ID.
  */
-void deleteTask(TodoListApp& app, int id) {
+inline void deleteTask(TodoListApp& app, int id) {
     if (!app.taskLookup.contains(id)) {
         cout << "Task ID " << id << " not found." << endl;
         return;
@@ -444,7 +498,7 @@ void deleteTask(TodoListApp& app, int id) {
 /**
  * @brief Restores the last deleted task.
  */
-void undoDelete(TodoListApp& app) {
+inline void undoDelete(TodoListApp& app) {
     if (app.undoStack.empty()) {
         cout << "Nothing to undo." << endl;
         return;
@@ -461,7 +515,7 @@ void undoDelete(TodoListApp& app) {
 /**
  * @brief Retrieves the next highest-priority task.
  */
-void processNextUrgentTask(TodoListApp& app) {
+inline void processNextUrgentTask(TodoListApp& app) {
     if (app.urgentTasks.empty()) {
         cout << "No urgent tasks remaining." << endl;
         return;
@@ -470,13 +524,14 @@ void processNextUrgentTask(TodoListApp& app) {
     Task nextTask = app.urgentTasks.extract();
     cout << "\n>>> NEXT URGENT TASK TO DO: " << endl;
     cout << "[" << nextTask.id << "] " << nextTask.title 
-         << " (Priority: " << nextTask.priority << ", Due: " << nextTask.dueDate << ")" << endl;
+         << (nextTask.project.empty() ? "" : " [Project: " + nextTask.project + "]")
+         << " (Priority: " << nextTask.priority << ", Due: " << (nextTask.dueDate.empty() ? "None" : nextTask.dueDate) << ")" << endl;
 }
 
 /**
  * @brief Edits an existing task.
  */
-void editTask(TodoListApp& app, int id, const string& newTitle, const string& newDesc, int newPriority, const string& newDueDate) {
+inline void editTask(TodoListApp& app, int id, const string& newTitle, const string& newDesc, int newPriority, const string& newDueDate, const string& newProject = "") {
     if (!app.taskLookup.contains(id)) {
         cout << "Task ID " << id << " not found." << endl;
         return;
@@ -497,6 +552,13 @@ void editTask(TodoListApp& app, int id, const string& newTitle, const string& ne
                     temp->data.dueDate = formattedDate;
                 }
             }
+            if (!newProject.empty()) {
+                if (newProject == "clear" || newProject == "none") {
+                    temp->data.project = "";
+                } else {
+                    temp->data.project = newProject;
+                }
+            }
             break;
         }
         temp = temp->next;
@@ -509,7 +571,7 @@ void editTask(TodoListApp& app, int id, const string& newTitle, const string& ne
 /**
  * @brief Mark a task as completed
  */
-void markTaskCompleted(TodoListApp& app, int id) {
+inline void markTaskCompleted(TodoListApp& app, int id) {
     if (!app.taskLookup.contains(id)) {
         cout << "Task ID " << id << " not found." << endl;
         return;

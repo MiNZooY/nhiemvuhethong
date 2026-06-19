@@ -1,6 +1,7 @@
-# ID|Title|Description|Priority|DueDate|IsCompleted
-1|Test Title|Test Desc|1|2025-01-01|0
-2|Task 1|Desc 1|1|2025-01-01|0
-3|My Task|My Description|1|2026-06-15|0
-4|cncncnc|d?gpg|1|2026|0
-5|3234|ruefwdf|1||0
+# ID|Title|Description|Priority|DueDate|IsCompleted|Project
+1|3234|ruefwdf|1||0|
+2|cncncnc|d?gpg|1|2026|0|
+3|My Task|My Description|1|2026-06-15|0|
+4|newTask|new task|1||0|DSA
+5|Task 1|Desc 1|1|2025-01-01|0|
+6|Test Title|Test Desc|1|2025-01-01|0|
