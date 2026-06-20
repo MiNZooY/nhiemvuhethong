@@ -1,7 +1,11 @@
 # ID|Title|Description|Priority|DueDate|IsCompleted|Project
-1|3234|ruefwdf|1||0|
-2|cncncnc|d?gpg|1|2026|0|
-3|My Task|My Description|1|2026-06-15|0|
-4|newTask|new task|1||0|DSA
-5|Task 1|Desc 1|1|2025-01-01|0|
-6|Test Title|Test Desc|1|2025-01-01|0|
+1|Finish DSA Project|Complete the library and app implementation|1|2026-06-25|0|DSA
+2|Prepare Presentation Slides|Create slides based on the outline|1|2026-06-28|0|DSA
+3|Buy groceries|Milk, eggs, bread, and veggies|3||0|Personal
+4|Do Math Homework|Chapter 4 exercises 1 to 10|2|2026-06-22|0|Math
+5|Review C++ Templates|Study template metaprogramming concepts|2|2026-06-30|0|DSA
+6|Call Mom|Catch up with family|3|2026-06-21|0|Personal
+7|Submit English Essay|Final draft of the literature review|1|2026-06-23|0|English
+8|Clean the apartment|Vacuum, dust, and take out the trash|3||0|Personal
+9|Read Chapter 5|Read the upcoming chapter for Math class|2|2026-06-24|0|Math
+10|Setup Git Repository|Initialize and push the initial commit|1|2026-06-15|1|DSA

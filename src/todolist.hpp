@@ -18,11 +18,9 @@ namespace fs = std::filesystem;
 #include "../lib/HashTable.hpp"
 #include "../lib/Algorithms.hpp"
 
-/**
- * @struct Task
- * @brief Represents a task in the TodoList application.
- * Overloads comparison operators to integrate smoothly with PriorityQueue (min-heap) and Algorithms (sorting).
- */
+// Represents a single task in our TodoList app.
+// We overload comparison operators here so that the task plays nicely 
+// with our custom PriorityQueue (min-heap) and Algorithms (sorting).
 struct Task {
     int id;                 // Unique task ID
     string title;           // Task title
@@ -92,10 +90,8 @@ struct Task {
     }
 };
 
-/**
- * @struct TodoListApp
- * @brief Holds the application state container using 5+ DSA library components.
- */
+// This is the main application state. 
+// It brings together all 5 of our custom DSA components to manage tasks.
 struct TodoListApp {
     // 1. LinkedList (Procedural Node Pointer): Stores active tasks dynamically
     Node<Task>* taskListHead;
@@ -120,26 +116,20 @@ void loadApp(TodoListApp& app);
 void saveApp(const TodoListApp& app);
 void viewAllTasks(const TodoListApp& app);
 
-/**
- * @brief Initializes the TodoListApp state and loads saved data.
- */
+// Sets up the initial app state and tries to load any existing saved data.
 inline void initApp(TodoListApp& app) {
     app.taskListHead = nullptr;
     app.nextTaskId = 1;
     loadApp(app);
 }
 
-/**
- * @brief Cleans up, saves data, and deallocates the TodoListApp state.
- */
+// Cleans everything up before exiting: saves the data and frees the linked list memory.
 inline void destroyApp(TodoListApp& app) {
     saveApp(app);
     clear(app.taskListHead);
 }
 
-/**
- * @brief Saves current active tasks to file.
- */
+// Dumps all current tasks into the text database file.
 inline void saveApp(const TodoListApp& app) {
     string dataDir = "data";
     string filePath = "data/todo_data.txt";
@@ -175,9 +165,7 @@ inline void saveApp(const TodoListApp& app) {
     outFile.close();
 }
 
-/**
- * @brief Custom comparators to sort tasks in different orders.
- */
+// These are custom comparators used to sort tasks in whatever order we want.
 struct CompareTaskTitleAsc {
     bool operator()(const Task& a, const Task& b) const {
         return a.title < b.title;
@@ -222,9 +210,8 @@ struct CompareTaskPriority {
     }
 };
 
-/**
- * @brief Sorts tasks inside the linked list based on a comparator (defaults to Task operator<).
- */
+// Pulls tasks out of the linked list, sorts them using QuickSort and the chosen comparator, 
+// and then builds the linked list back up. By default, it uses the Task's built-in < operator.
 template<typename Compare = less<Task>>
 inline void sortTasks(TodoListApp& app, Compare comp = Compare()) {
     int count = size(app.taskListHead);
@@ -248,9 +235,8 @@ inline void sortTasks(TodoListApp& app, Compare comp = Compare()) {
     delete[] arr;
 }
 
-/**
- * @brief Re-indexes all task IDs sequentially from 1 to N and rebuilds structures.
- */
+// Fixes up the task IDs so they are numbered cleanly from 1 to N, 
+// and updates the hashtable lookup so everything stays in sync.
 inline void reindexTasks(TodoListApp& app) {
     HashTable<int, int> oldToNew;
     int newId = 1;
@@ -292,9 +278,7 @@ inline void reindexTasks(TodoListApp& app) {
     }
 }
 
-/**
- * @brief Unified helper to synchronize sort, reindex, and save operations.
- */
+// A handy wrapper to sort, fix IDs, and save everything in one go.
 inline void syncData(TodoListApp& app, bool silent = true) {
     sortTasks(app);
     reindexTasks(app);
@@ -304,9 +288,7 @@ inline void syncData(TodoListApp& app, bool silent = true) {
     }
 }
 
-/**
- * @brief Loads tasks from file.
- */
+// Reads the text database line by line and loads the tasks into memory.
 inline void loadApp(TodoListApp& app) {
     // Reset app state
     clear(app.taskListHead);
@@ -360,9 +342,8 @@ inline void loadApp(TodoListApp& app) {
     syncData(app, true);
 }
 
-/**
- * @brief Normalizes date string (e.g. 2026-2-7 to 2026-02-07, also converts / to -)
- */
+// Cleans up messy date inputs. For example, turns "2026-2-7" into "2026-02-07" 
+// and swaps slashes for dashes.
 inline string formatDateString(string dateStr) {
     if (dateStr.empty() || dateStr == "clear" || dateStr == "none") {
         return dateStr;
@@ -395,9 +376,7 @@ inline string formatDateString(string dateStr) {
     return result;
 }
 
-/**
- * @brief Validates if a formatted date string represents a real date.
- */
+// Checks if the date string is actually a real calendar date.
 inline bool isValidDate(const string& dateStr) {
     if (dateStr.empty() || dateStr == "clear" || dateStr == "none") return true;
 
@@ -439,9 +418,7 @@ inline bool isValidDate(const string& dateStr) {
     return true;
 }
 
-/**
- * @brief Adds a new task to the manager.
- */
+// Creates a new task and inserts it into our data structures.
 inline void addTask(TodoListApp& app, const string& title, const string& desc, int priority, const string& dueDate, const string& project = "") {
     string formattedDate = formatDateString(dueDate);
     Task newTask(app.nextTaskId++, title, desc, priority, formattedDate, project);
@@ -452,9 +429,7 @@ inline void addTask(TodoListApp& app, const string& title, const string& desc, i
     cout << "Added task successfully! (Tasks have been auto-sorted and re-indexed)" << endl;
 }
 
-/**
- * @brief Displays all active tasks.
- */
+// Prints out the list of all active tasks.
 inline void viewAllTasks(const TodoListApp& app) {
     if (empty(app.taskListHead)) {
         cout << "No tasks available." << endl;
@@ -475,9 +450,7 @@ inline void viewAllTasks(const TodoListApp& app) {
     cout << "========================\n" << endl;
 }
 
-/**
- * @brief Removes a task by ID.
- */
+// Removes a task from the active list and pushes it to the Undo stack just in case.
 inline void deleteTask(TodoListApp& app, int id) {
     if (!app.taskLookup.contains(id)) {
         cout << "Task ID " << id << " not found." << endl;
@@ -495,9 +468,7 @@ inline void deleteTask(TodoListApp& app, int id) {
     cout << "Deleted task with old ID: " << id << " and re-indexed remaining tasks." << endl;
 }
 
-/**
- * @brief Restores the last deleted task.
- */
+// Pops the last deleted task off the stack and puts it back into the list.
 inline void undoDelete(TodoListApp& app) {
     if (app.undoStack.empty()) {
         cout << "Nothing to undo." << endl;
@@ -512,9 +483,7 @@ inline void undoDelete(TodoListApp& app) {
     viewAllTasks(app);
 }
 
-/**
- * @brief Retrieves the next highest-priority task.
- */
+// Grabs the single most urgent task using our Min-Heap priority queue.
 inline void processNextUrgentTask(TodoListApp& app) {
     if (app.urgentTasks.empty()) {
         cout << "No urgent tasks remaining." << endl;
@@ -528,9 +497,7 @@ inline void processNextUrgentTask(TodoListApp& app) {
          << " (Priority: " << nextTask.priority << ", Due: " << (nextTask.dueDate.empty() ? "None" : nextTask.dueDate) << ")" << endl;
 }
 
-/**
- * @brief Edits an existing task.
- */
+// Modifies the details of a specific task.
 inline void editTask(TodoListApp& app, int id, const string& newTitle, const string& newDesc, int newPriority, const string& newDueDate, const string& newProject = "") {
     if (!app.taskLookup.contains(id)) {
         cout << "Task ID " << id << " not found." << endl;
@@ -568,9 +535,7 @@ inline void editTask(TodoListApp& app, int id, const string& newTitle, const str
     cout << "Task [" << id << "] edited successfully! Data automatically re-sorted and re-indexed." << endl;
 }
 
-/**
- * @brief Mark a task as completed
- */
+// Toggles the completed status of a task.
 inline void markTaskCompleted(TodoListApp& app, int id) {
     if (!app.taskLookup.contains(id)) {
         cout << "Task ID " << id << " not found." << endl;

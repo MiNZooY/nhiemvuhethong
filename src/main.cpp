@@ -138,6 +138,8 @@ int main() {
                         cout << "\n";
                         viewAllTasks(app); // Show the freshly sorted list
                     }
+                } else {
+                    continue; // Skip the global "press enter to continue" prompt
                 }
                 break;
             }
