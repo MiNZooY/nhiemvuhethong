@@ -1,0 +1,14 @@
+Xin chào thầy, nhóm em gồm 2 thành viên là Phạm Minh Duy 25120310, và Phương Hiệp Đạt 25120299.
+Em xin trình bày về đồ án môn học Cấu Trúc Dữ Liệu Và Giải Thuật, dự án của chúng em là một todolist chạy trên cmd.
+Về phần thư viện chúng em đã viết các thao tác với các cấu trúc dữ liệu linked list, stack, queue,... 
+	dùng templates typename để dùng cho nhiều data types.
+	đồng thời có dùng comparatores để sort theo nhiều thứ tự như a-z, z-a, tăng theo priority
+Về phần ứng dụng 
+	Linked list sẽ phần xương sống cho chương trình để lưu trữ các task, thêm xóa sửa. Các dữ liệu sẽ được ghi vào file data. 
+	Khi view all task chúng ta có thể thấy từng task sẽ có các id riêng, áp dụng hashtable cho việc tìm kiếm O(1) thay vì phải duyệt toàn bộ linked list.
+	Thay vì chỉ là những task đơn lẻ chúng em còn đánh thêm về phần project, nghĩa là task này giúp cho lĩnh vực nào trong cuộc sống của người dùng từ đó tạo động lực hoàn thành task.\
+	Chúng em còn có priorty cho những công việc. Chúng em có áp dụng Priority Queue cho việc này khi có chức năng view next urgent task.
+	Task sẽ có trạng thái complete hay chưa và chúng em có function để mark complete.
+	Đồng thời khi thêm task, không thể tránh được việc sai sót nên chúng em có chức năng là edit, hoặc là delete hẳn.
+	Về việc delete, sẽ có phương án backup là undo delete, chúng em áp dụng Stack vào trong chức năng này để những việc xóa cuối cùng sẽ xuất hiện lại đầu tiên.
+ 	
