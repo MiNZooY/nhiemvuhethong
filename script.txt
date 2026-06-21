@@ -10,5 +10,5 @@ Về phần ứng dụng
 	Chúng em còn có priorty cho những công việc. Chúng em có áp dụng Priority Queue cho việc này khi có chức năng view next urgent task.
 	Task sẽ có trạng thái complete hay chưa và chúng em có function để mark complete.
 	Đồng thời khi thêm task, không thể tránh được việc sai sót nên chúng em có chức năng là edit, hoặc là delete hẳn.
-	Về việc delete, sẽ có phương án backup là undo delete, chúng em áp dụng Stack vào trong chức năng này để những việc xóa cuối cùng sẽ xuất hiện lại đầu tiên.
- 	
+	Về việc delete, nếu không tồn tại thì hiện thông báo task không tồn tại, sẽ có phương án backup là undo delete, chúng em áp dụng Stack vào trong chức năng này để những việc xóa cuối cùng sẽ xuất hiện lại đầu tiên.
+	Bất kì thao tác nào thì tụi em đều reindex id và dùng quick sort để sắp xếp lại các task 
